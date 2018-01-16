@@ -1,7 +1,7 @@
 
 /**
   * @note 		STILL IN DEVELOPMENT
-  * @file 		max3713.h
+  * @file 		max3713.cpp
   * @author 	Simon Burkhardt github.com/mnemocron
   * @copyright 	MIT license
   * @date 		14 Jan 2018
