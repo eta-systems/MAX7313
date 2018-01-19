@@ -4,7 +4,7 @@
   * @file 		max3713.cpp
   * @author 	Simon Burkhardt github.com/mnemocron
   * @copyright 	MIT license
-  * @date 		14 Jan 2018
+  * @date 		19 Jan 2018
   * @brief 		Object oriented C++ library for the MAX7313 port expander for STM32 HAL.
   * @details
   * @see 		github.com/mnemocron
@@ -64,9 +64,11 @@ class MAX7313
 		uint8_t begin();
 	
 		MAX7313(I2C_HandleTypeDef *wireIface, uint16_t address);
-		uint8_t writeRegister(uint8_t reg, uint8_t val);
-		uint8_t readRegister(uint8_t reg, uint8_t *val);
+		uint8_t write8(uint8_t reg, uint8_t val);
+		uint8_t read8(uint8_t reg, uint8_t *val);
 		uint8_t enableInterrupt();
+		uint8_t disableInterrupt();
+		uint8_t clearInterrupt();
 };
 
 class MAX7313Output

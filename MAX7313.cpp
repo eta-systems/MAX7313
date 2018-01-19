@@ -4,15 +4,15 @@
   * @file 		max3713.cpp
   * @author 	Simon Burkhardt github.com/mnemocron
   * @copyright 	MIT license
-  * @date 		14 Jan 2018
+  * @date 		19 Jan 2018
   * @brief 		Object oriented C++ library for the MAX7313 port expander for STM32 HAL.
-  * @details
+  * @details 	
   * @see 		github.com/mnemocron
   * @see 		https://datasheets.maximintegrated.com/en/ds/MAX7313.pdf
   * @see 		https://forum.arduino.cc/index.php?topic=9682.0
   */
 
-#include "max7313.hpp"
+#include "max7313.h"
 #include "main.h"
 
 /**
@@ -38,12 +38,12 @@ MAX7313::MAX7313(I2C_HandleTypeDef *wireIface, uint16_t address){
   */
 uint8_t MAX7313::begin(){
 	uint8_t ret = 0;
-	ret += this->writeRegister(MAX7313_PORTS_CONF_00_07,    this->ioconfig[0]);
-	ret += this->writeRegister(MAX7313_PORTS_CONF_08_15,    this->ioconfig[1]);
-	ret += this->writeRegister(MAX7313_BLINK_PHASE_0_00_07, 0xff);
-	ret += this->writeRegister(MAX7313_BLINK_PHASE_0_08_15, 0xff);
-	ret += this->writeRegister(MAX7313_CONFIGURATION,       this->conf);
-	ret += this->writeRegister(MAX7313_OUT_INT_MA_16,       0xff);
+	ret += this->write8(MAX7313_PORTS_CONF_00_07,    this->ioconfig[0]);
+	ret += this->write8(MAX7313_PORTS_CONF_08_15,    this->ioconfig[1]);
+	ret += this->write8(MAX7313_BLINK_PHASE_0_00_07, 0xff);
+	ret += this->write8(MAX7313_BLINK_PHASE_0_08_15, 0xff);
+	ret += this->write8(MAX7313_CONFIGURATION,       this->conf);
+	ret += this->write8(MAX7313_OUT_INT_MA_16,       0xff);
 	if(ret)
 		return 1;
 	return 0;
@@ -53,18 +53,47 @@ uint8_t MAX7313::begin(){
   * @brief 		enables data change interrupt on !INT/O16 pin
   * @return 	0 on success, 1 on I2C transmission error
   * @see 		MAX7313 datasheet p.7 / p.13 - 15
-  * @important 	must be called before begin()
+  * @important 	The MAX7313 signals a data change interrupt with a falling edge on the !INT/O16 pin
+  *           	and will stay in LOW state as long as the interrput flag is not reset by reading input registers.
+  *           	You can use MAX7313::clearInterrupt()
   */
 uint8_t MAX7313::enableInterrupt(){
 	this->conf |= 0x08;
-	/** @Todo There are two possibilities to implement this method:
-		*				- call this method before begin() => interrupts can only be enabled but not disabled
-		*				- call this method anytime => must execute this->begin() inside inside here 
-		*								=> possible to enable/disable interrupts on the fly 
-		*/
-	//this->begin();
-	if(this->writeRegister(MAX7313_CONFIGURATION, this->conf))
+	if(this->write8(MAX7313_CONFIGURATION, this->conf))
 		return 1;
+	if(this->clearInterrupt())
+		return 1;
+	return 0;
+}
+
+/**
+  * @brief 		disables data change interrupt on !INT/O16 pin
+  * @return 	0 on success, 1 on I2C transmission error
+  * @see 		MAX7313 datasheet p.7 / p.13 - 15
+  */
+uint8_t MAX7313::disableInterrupt(){
+	this->conf &= 0xF7;			// clear bit 3
+	if(this->write8(MAX7313_CONFIGURATION, this->conf))
+		return 1;
+	return 0;
+}
+
+/**
+  * @brief 		clear/validate the data change interrupt
+  * @details 	This method is used to clear an interrupt condition (!INT/O16 pin = LOW)
+  * 			by reading the input registers. The MAX7313 will pull the !INT/O16 pin HIGH
+  * 			and will be armed for another interrupt event.
+  * @return 	0 on success, 1 on I2C transmission error, 2 if interrupts are not enabled
+  * @see 		https://github.com/mnemocron/MAX7313/issues/1
+  */
+uint8_t MAX7313::clearInterrupt(){
+	if(this->conf & 0x08){
+		uint8_t devnull = 0;
+		if(this->read8(MAX7313_READ_IN_00_07, &devnull))
+			return 1;
+		if(this->read8(MAX7313_READ_IN_08_15, &devnull))
+			return 1;
+	}
 	return 0;
 }
 
@@ -72,20 +101,15 @@ uint8_t MAX7313::enableInterrupt(){
   * @brief 		writes a single value into a MAX7313 register
   * @param 		reg, the destination register's address
   * @param 		val, the value for the destination register
-  * @todo 		replace current transmit function with HAL_I2C_Mem_Write
   */
-uint8_t MAX7313::writeRegister(uint8_t reg, uint8_t val){
+uint8_t MAX7313::write8(uint8_t reg, uint8_t val){
 	/**
 	  * @note 	This is a glue function,
 	  * 		You can change the hardware-specific functions here,
 	  * 		if you want to use this library with another compiler (eg. Arduino)
 	  * @note 	This method writes one byte to the register address reg
 	  */
-	uint8_t buf[2];
-	buf[0] = reg;
-	buf[1] = val;
-	// if(HAL_I2C_Mem_Write(this->wireIface, this->devAddress, reg, val, 10) != HAL_OK) return 1;
-	if(HAL_I2C_Master_Transmit(this->wireIface, this->devAddress, &buf[0], 2, 10) != HAL_OK)
+	if(HAL_I2C_Mem_Write(this->wireIface, this->devAddress, reg, 1, &val, 1, 10) != HAL_OK) 
 		return 1;
 	return 0;
 }
@@ -95,21 +119,15 @@ uint8_t MAX7313::writeRegister(uint8_t reg, uint8_t val){
   * @param 		reg, the destination register's address
   * @param 		val, pointer to the location where the value shall be stored
   * @return 	0 on success, 1 on transmission error
-  * @todo 		replace current method with HAL_I2C_Mem_Read
   */
-uint8_t MAX7313::readRegister(uint8_t reg, uint8_t *val){
-	uint8_t ret = 0;
+uint8_t MAX7313::read8(uint8_t reg, uint8_t *val){
 	/**
 	  * @note 	This is a glue function,
 	  * 		You can change the hardware-specific functions here,
 	  * 		if you want to use this library with another compiler (eg. Arduino)
 	  * @note 	This method reads one byte from the register at address reg
 	  */
-	uint8_t buf[2];
-	if(HAL_I2C_Master_Transmit(this->wireIface, this->devAddress, &reg, 1, 10) != HAL_OK) ret ++;
-	if(HAL_I2C_Master_Receive(this->wireIface, this->devAddress, val, 1, 10) != HAL_OK)   ret ++;
-	// if(HAL_I2C_Mem_Read(this->wireIface, this->devAddress, *reg, val,10) != HAL_OK) return 1;
-	if(ret)
+	if(HAL_I2C_Mem_Read(this->wireIface, this->devAddress, reg, 1, val, 1, 10) != HAL_OK) 
 		return 1;
 	return 0;
 }
@@ -227,7 +245,7 @@ uint8_t MAX7313Output::setIntensity(uint8_t intensity){
 			val = ((this->chip->intensity[this->port+1]<<4)&0xF0) + (this->chip->intensity[this->port]&0x0F);
 	}
 	
-	if(this->chip->writeRegister(this->ioreg, val))
+	if(this->chip->write8(this->ioreg, val))
 		return 1;
 	return 0;
 }
@@ -239,7 +257,7 @@ uint8_t MAX7313Output::setIntensity(uint8_t intensity){
   */
 uint8_t MAX7313Input::read(){
 	uint8_t ret = 0;
-	this->chip->readRegister(this->ioreg, &ret);
+	this->chip->read8(this->ioreg, &ret);
 	/** I haven't figured out how to correctly shift and bitmask the return value
 	  * but since the return value in this case is only a 1-bit value it is not of great importance
 	  * the if statement below works for 1-bit values	  */
