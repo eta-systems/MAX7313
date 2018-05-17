@@ -59,6 +59,7 @@
 #define __max7313_get_regmask(port) (1<<(port%8))
 #define __max7313_get_input_reg(port) ((port < 7) ? MAX7313_READ_IN_00_07 : MAX7313_READ_IN_08_15)
 #define __max7313_get_output_reg(port) __max7313_output_registers[port/2]
+
 static const uint8_t __max7313_output_registers[9] = {
   MAX7313_OUT_INT_01_00,
   MAX7313_OUT_INT_03_02,
