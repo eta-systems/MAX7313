@@ -1,4 +1,4 @@
-# MAX7313 C++ Library
+# MAX7313 C and C++ Libraries
 ### 16-Port I/O Expander with LED Intensity Control 
 
 This library is made for the **STM32 HAL** (Hardware Abstraction Library) platform. See notes below to adjust the code for other platforms. The example code is for STM32CubeMX and Keil uVision 5 IDE.
@@ -7,26 +7,26 @@ This library is made for the **STM32 HAL** (Hardware Abstraction Library) platfo
 
 ### Usage
 
-```cpp
+```c
 /* USER CODE BEGIN Includes */
 #include "max7313.h"          // include the library
 ```
 
-```cpp
+```c
 /* USER CODE BEGIN 0 */
 #define MAX7313_1 0x42        // 100 0010
-
-MAX7313 ioDriver(&hi2c1, MAX7313_1);   // declare new port expander chip on hi2c interface
-
-MAX7313Output LED_0    (&ioDriver_2, 8, 0);  // new output on port 8, active HIGH
-MAX7313Input  Button_0 (&ioDriver_2, 2);     // new input on port 8
+MAX7313 ioDriver_1;
 /* USER CODE END 0 */
 
 int main(void)
 {
-
     /* USER CODE BEGIN 2 */
-    ioDriver.begin();         // initialize the port expander chip
+
+    ioDriver_1 = new_MAX7313(); // initialize the default values
+    MAX7313_Pin_Mode(&ioDriver_1, 1, PORT_OUTPUT);
+    MAX7313_Pin_Mode(&ioDriver_1, 2, PORT_INPUT);
+    MAX7313_Init(&ioDriver_1, &hi2c1, MAX7313_1); // initialize the port expander chip
+    MAX7313_Interrupt_Enable(&ioDriver_2); // must be called after Init()
     /* USER CODE END 2 */
 
     /* Infinite loop */
@@ -36,9 +36,9 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-        LED_0.setIntensity(15);     // 15 = max brightness
+        MAX7313_Pin_Write(&ioDriver_1, 1, 15); // 15 = max
         HAL_Delay(500);
-        LED_0.setIntensity(0);      //  0 = off
+        MAX7313_Pin_Write(&ioDriver_1, 1, 0);  //  0 = min
         HAL_Delay(500);
     }
   /* USER CODE END 3 */
@@ -46,37 +46,10 @@ int main(void)
 }
 ```
 
-### Interrupts
-
-enable EXTI/GPIO interrupt with **falling edge** detection in the configuration and handle the respective interrupts in `stm32f3xx_it.c`
-
-```cpp
-
-/**
-* @brief This function handles EXTI line[9:5] interrupts.
-*/
-void EXTI9_5_IRQHandler(void)
-{
-  /* USER CODE BEGIN EXTI9_5_IRQn 0 */
-  // handle data change interrupt
-  if(__HAL_GPIO_EXTI_GET_FLAG(GPIO_PIN_5)){ 
-        // handle the interrupt, eg. read out the button value
-        // when an interrupt occurs, the interrupt must be reset on the port expander
-        // use .clearInterrupt() or just read out the input registers
-  }
-
-  /* USER CODE END EXTI9_5_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_5);
-  /* USER CODE BEGIN EXTI9_5_IRQn 1 */
-
-  /* USER CODE END EXTI9_5_IRQn 1 */
-}
-```
-
 ---
-### Example
+### Examples
 
-The example provided was tested on custom hardware. It displays the usage of the interrupt functionality to blink an LED in the main loop while reacting to button presses in the interrupt handler.
+The examples provided were tested on custom hardware (STM32F373). It displays the usage of the interrupt functionality to blink an LED in the main loop while reacting to button presses in the interrupt handler.
 
 ---
 
@@ -84,7 +57,9 @@ The example provided was tested on custom hardware. It displays the usage of the
 
 This library only includes functionality to use the pins on the MAX7313 port expander as inputs or PWM outputs. The Blink functionality is not implemented.
 
-You should be able to port this library to any other platform which supports C++. Note the comments inside the code. There are the hardware glue functions `MAX7313::read8` and `MAX7313::write8` which you will have to change to your I2C interface.
+You should be able to port this library to any other platform which supports C or C++. Note the comments inside the code. There are the hardware glue functions (methods) MAX7313_Read8 (`MAX7313::read8`) and MAX7313_Write8 (`MAX7313::write8`) which you will have to change to your I2C interface.
+
+I recommend using the C library instead of the C++ library since it is more lightweight on microcontrollers.
 
 ---
 
