@@ -14,7 +14,7 @@ This library is made for the **STM32 HAL** (Hardware Abstraction Library) platfo
 
 ```c
 /* USER CODE BEGIN 0 */
-#define MAX7313_1 0x42        // 100 0010
+#define MAX7313_address 0x42        // 100 0010
 MAX7313 ioDriver_1;
 /* USER CODE END 0 */
 
@@ -25,7 +25,7 @@ int main(void)
     ioDriver_1 = new_MAX7313(); // initialize the default values
     MAX7313_Pin_Mode(&ioDriver_1, 1, PORT_OUTPUT);
     MAX7313_Pin_Mode(&ioDriver_1, 2, PORT_INPUT);
-    MAX7313_Init(&ioDriver_1, &hi2c1, MAX7313_1); // initialize the port expander chip
+    MAX7313_Init(&ioDriver_1, &hi2c1, MAX7313_address); // initialize the port expander chip
     MAX7313_Interrupt_Enable(&ioDriver_2); // must be called after Init()
     /* USER CODE END 2 */
 
@@ -57,7 +57,7 @@ The examples provided were tested on custom hardware (STM32F373). It displays th
 
 This library only includes functionality to use the pins on the MAX7313 port expander as inputs or PWM outputs. The Blink functionality is not implemented.
 
-You should be able to port this library to any other platform which supports C or C++. Note the comments inside the code. There are the hardware glue functions (methods) MAX7313_Read8 (`MAX7313::read8`) and MAX7313_Write8 (`MAX7313::write8`) which you will have to change to your I2C interface.
+You should be able to port this library to any other platform which supports C or C++. Note the comments inside the code. There are the hardware glue functions (methods) `MAX7313_Read8` (`MAX7313::read8`) and `MAX7313_Write8` (`MAX7313::write8`) which you will have to change to your I2C interface.
 
 I recommend using the C library instead of the C++ library since it is more lightweight on microcontrollers.
 
