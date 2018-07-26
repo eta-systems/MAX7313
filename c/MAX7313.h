@@ -1,21 +1,21 @@
 
 /**
-  * @file 		max3713.h
-  * @author 	Simon Burkhardt github.com/mnemocron
-  * @copyright 	MIT license
-  * @date 		17.05.2018
-  * @brief 		Object oriented C++ library for the MAX7313 port expander for STM32 HAL.
+  * @file       max3713.h
+  * @author     Simon Burkhardt github.com/mnemocron
+  * @copyright  MIT license
+  * @date       17.05.2018
+  * @brief      Object oriented C++ library for the MAX7313 port expander for STM32 HAL.
   * @details
-  * @see 		github.com/mnemocron
-  * @see 		https://datasheets.maximintegrated.com/en/ds/MAX7313.pdf
-  * @see 		https://forum.arduino.cc/index.php?topic=9682.0
+  * @see        github.com/mnemocron
+  * @see        https://datasheets.maximintegrated.com/en/ds/MAX7313.pdf
+  * @see        https://forum.arduino.cc/index.php?topic=9682.0
   */
 
 #ifndef _MAX7313_H
 #define _MAX7313_H
 
 /**
-  * @note 		tested using STM32F373
+  * @note  tested using STM32F373
   */
 #ifndef STM32F3XX_H
 #include "stm32f3xx_hal.h"
@@ -30,8 +30,8 @@
 #endif
 
 /**
-  * @note 		datasheet p.13 table 2. Register Address Map
-  * @see 		https://datasheets.maximintegrated.com/en/ds/MAX7313.pdf
+  * @note  datasheet p.13 table 2. Register Address Map
+  * @see   https://datasheets.maximintegrated.com/en/ds/MAX7313.pdf
   */
 #define MAX7313_READ_IN_00_07       	0x00
 #define MAX7313_READ_IN_08_15       	0x01
@@ -51,14 +51,16 @@
 #define MAX7313_OUT_INT_11_10       	0x15
 #define MAX7313_OUT_INT_13_12       	0x16
 #define MAX7313_OUT_INT_15_14       	0x17
-#define MAX7313_NO_PORT    	        	0x88 		// @todo check that this address is not within the address space of MAX7313 OR add check for NO_PORT befor writing to i2c bus
 
 #define PORT_OUTPUT 0
 #define PORT_INPUT  1
 
 #define __max7313_get_regmask(port) (1<<(port%8))
-#define __max7313_get_input_reg(port) ((port < 7) ? MAX7313_READ_IN_00_07 : MAX7313_READ_IN_08_15)
+#define __max7313_get_input_reg(port) ((port < 8) ? MAX7313_READ_IN_00_07 : MAX7313_READ_IN_08_15)
 #define __max7313_get_output_reg(port) __max7313_output_registers[port/2]
+#define __max7313_get_phase_reg(port, phase) \
+    (phase ? ( (port<8)? MAX7313_BLINK_PHASE_1_00_07:MAX7313_BLINK_PHASE_1_08_15  ) : \
+     ((port<8)? MAX7313_BLINK_PHASE_0_00_07:MAX7313_BLINK_PHASE_0_08_15))
 
 static const uint8_t __max7313_output_registers[9] = {
   MAX7313_OUT_INT_01_00,

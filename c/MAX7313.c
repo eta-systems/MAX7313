@@ -1,14 +1,14 @@
 
 /**
-  * @note 		STILL IN DEVELOPMENT
-  * @file 		max3713.c
-  * @author 	Simon Burkhardt github.com/mnemocron
+  * @note       STILL IN DEVELOPMENT
+  * @file       max3713.c
+  * @author     Simon Burkhardt github.com/mnemocron
   * @copyright 	MIT license
-  * @date 		17.05.2018
-  * @brief 		C library for the MAX7313 port expander for STM32 HAL.
-  * @details 	
-  * @see 		https://datasheets.maximintegrated.com/en/ds/MAX7313.pdf
-  * @see 		https://forum.arduino.cc/index.php?topic=9682.0
+  * @date       17.05.2018
+  * @brief      C library for the MAX7313 port expander for STM32 HAL.
+  * @details    
+  * @see        https://datasheets.maximintegrated.com/en/ds/MAX7313.pdf
+  * @see        https://forum.arduino.cc/index.php?topic=9682.0
   */
 
 #include "max7313.h"
@@ -47,7 +47,7 @@ MAX7313 new_MAX7313(void){
 	MAX7313 chip;
 	chip.ioconfig[0] = 0xFF;			// default input / 1=IN / 0=OUT
 	chip.ioconfig[1] = 0xFF;			// default input / 1=IN / 0=OUT
-	chip.conf = 0x00;
+	chip.conf = 0x01; 					// enable blink phase
 	for(uint8_t i=0; i<sizeof(chip.intensity); i++){
 		chip.intensity[i] = 0xff;
 	}
@@ -107,15 +107,37 @@ void MAX7313_Pin_Mode(MAX7313 *chip, uint8_t port, uint8_t mode){
 uint8_t MAX7313_Pin_Write(MAX7313 *chip, uint8_t port, uint8_t intensity){
 	if(intensity > 0x0F)
 		intensity = 0x0F;
+
+	// "[the LED] cannot be turned fully off using the PWM intensity control."
+	// using Blink Mode to correct this issue
+	// see: page 17: "Using PWM Intensity Controls with Blink Disabled"
+	// see: page 17: "Using PWM Intensity Controls with Blink Enabled"
+	// see: page 18: Table 10
+	// see: page 20: Table 12 (Important !)
+	// fliping the on-state in the phase 0 register to turn the port fully off
+	uint8_t ret = 0;
+	uint8_t phase0 = 0;
+	// uint8_t phase1 = 0;
+	ret += MAX7313_Read8(chip, __max7313_get_phase_reg(port, 0), &phase0);
+	// MAX7313_Read8(chip, __max7313_get_phase_reg(port, 1), &phase1);
+	if(intensity == 0){
+		// Table 12.
+		intensity = 0xF;  // turn on to max, because the inversion makes it completely off
+		phase0 &= (~(1<<(port%8)));  // inverted on state
+	} else {
+		phase0 |= (1<<(port%8));     // regular  on state
+	}
+
 	chip->intensity[port] = intensity;
 	uint8_t val;
 	if(port % 2) 		//  odd (1,3,5) => this + this-1
 		val = ((chip->intensity[port]<<4)&0xF0) + (chip->intensity[port-1]&0x0F);
 	else									// even (0,2,4) => this+1 + this
 		val = ((chip->intensity[port+1]<<4)&0xF0) + (chip->intensity[port]&0x0F);
-	if(MAX7313_Write8(chip, __max7313_get_output_reg(port), val))
-		return 1;
-	return 0;
+	
+	ret += MAX7313_Write8(chip, __max7313_get_phase_reg(port, 0), phase0);
+	ret += MAX7313_Write8(chip, __max7313_get_output_reg(port), val);
+	return ret;
 }
 
 /**
@@ -128,7 +150,7 @@ uint8_t MAX7313_Pin_Write(MAX7313 *chip, uint8_t port, uint8_t intensity){
 uint8_t MAX7313_Pin_Read(MAX7313 *chip, uint8_t port){
 	uint8_t ret = 0;
 	MAX7313_Read8(chip, __max7313_get_input_reg(port), &ret);
-	ret = ret & __max7313_get_regmask(port);
+	ret = ret & __max7313_get_regmask(port); // masking out the unimportant bits
 	if(ret) 
 		return 1;
 	return 0;
@@ -184,5 +206,3 @@ uint8_t MAX7313_Interrupt_Clear(MAX7313 *chip){
 	}
 	return 0;
 }
-
-
